@@ -1,0 +1,62 @@
+# Codemagic — Casa em dia.
+# Usa mac_mini_m2, o tipo de máquina disponível no plano gratuito (linux_x2 exige plano pago).
+# Workflow "app-debug": sem nenhuma configuração, gera um APK instalável.
+# Workflow "app-release": exige um keystore enviado em Team settings > Code signing identities com a referência casa_em_dia_keystore.
+workflows:
+  app-debug:
+    name: Casa em dia - APK debug
+    instance_type: mac_mini_m2
+    max_build_duration: 45
+    environment:
+      java: 17
+    scripts:
+      - name: Preparar SDK e Gradle
+        script: |
+          cd "$CM_BUILD_DIR"
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+          if [ ! -f gradlew ]; then
+            if command -v gradle >/dev/null 2>&1; then
+              gradle wrapper --gradle-version 8.9
+            else
+              curl -sSL -o /tmp/gradle.zip https://services.gradle.org/distributions/gradle-8.9-bin.zip
+              unzip -q /tmp/gradle.zip -d /tmp
+              /tmp/gradle-8.9/bin/gradle wrapper --gradle-version 8.9
+            fi
+          fi
+          chmod +x gradlew
+      - name: Compilar APK
+        script: |
+          cd "$CM_BUILD_DIR"
+          ./gradlew :app-main:assembleDebug --no-daemon --stacktrace
+    artifacts:
+      - app-main/build/outputs/**/*.apk
+
+  app-release:
+    name: Casa em dia - APK release assinado
+    instance_type: mac_mini_m2
+    max_build_duration: 45
+    environment:
+      java: 17
+      android_signing:
+        - casa_em_dia_keystore
+    scripts:
+      - name: Preparar SDK e Gradle
+        script: |
+          cd "$CM_BUILD_DIR"
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+          if [ ! -f gradlew ]; then
+            if command -v gradle >/dev/null 2>&1; then
+              gradle wrapper --gradle-version 8.9
+            else
+              curl -sSL -o /tmp/gradle.zip https://services.gradle.org/distributions/gradle-8.9-bin.zip
+              unzip -q /tmp/gradle.zip -d /tmp
+              /tmp/gradle-8.9/bin/gradle wrapper --gradle-version 8.9
+            fi
+          fi
+          chmod +x gradlew
+      - name: Compilar APK release
+        script: |
+          cd "$CM_BUILD_DIR"
+          ./gradlew :app-main:assembleRelease --no-daemon --stacktrace
+    artifacts:
+      - app-main/build/outputs/**/*.apk
